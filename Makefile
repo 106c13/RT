@@ -1,7 +1,7 @@
 CC     = cc
 RM     = rm -rf
 
-NAME   = fdf
+NAME   = rt
 OBJDIR = objs
 MLX_LIB = mlx/libmlx.a
 
