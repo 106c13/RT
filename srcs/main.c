@@ -106,8 +106,80 @@ void	draw_s(t_data *img, t_obj *s)
 	}
 }
 
+/*
+y = k1x + b1
+y = k2x + b2
+x(k2 - k1) = b1 - b2
+*/
+int ray_intersect_segment(t_vec2 ray_origin, t_vec2 ray_dir, t_vec2 p1, t_vec2 p2, float *tx, float *ty) {
+    // Ray: P_ray = ray_origin + t * ray_dir
+    // Edge: P_edge = p1 + u * (p2 - p1)
+
+    float denom = (ray_dir.x * (p2.y - p1.y)) - (ray_dir.y * (p2.x - p1.x));
+
+    // Parallel lines (no intersection)
+    if (fabs(denom) < 1e-6) {
+        return 0;
+    }
+
+    float t = ((ray_origin.x - p1.x) * (p2.y - p1.y) - (ray_origin.y - p1.y) * (p2.x - p1.x)) / denom;
+    float u = ((ray_origin.x - p1.x) * ray_dir.y - (ray_origin.y - p1.y) * ray_dir.x) / denom;
+
+    // Check if the intersection is within the bounds of the segment (0 <= u <= 1)
+    if (u >= 0 && u <= 1 && t >= 0) {
+        *tx = ray_origin.x + t * ray_dir.x;
+        *ty = ray_origin.y + t * ray_dir.y;
+        return 1;
+    }
+
+    return 0;
+}
+
+int find_hit_hard(t_obj *s, t_cam *cam, float *x, float *y) {
+    float k1, b1;  // For the ray
+    float tx, ty;
+    float min_dist = 10000;  // A large initial distance
+    float closest_x = 0, closest_y = 0;
+    int hit = 0;
+
+    // Calculate ray direction (normalize for accuracy)
+    t_vec2 ray_dir = {cam->ornt.x - cam->pos.x, cam->ornt.y - cam->pos.y};
+    float ray_len = sqrt(ray_dir.x * ray_dir.x + ray_dir.y * ray_dir.y);
+    ray_dir.x /= ray_len;
+    ray_dir.y /= ray_len;
+
+    // Loop through all object edges
+    for (int i = 0; i < s->count_points; i++) {
+        t_vec2 p1 = {s->points_x[i], s->points_y[i]};
+        t_vec2 p2 = {s->points_x[(i + 1) % s->count_points], s->points_y[(i + 1) % s->count_points]};
+
+        if (ray_intersect_segment(cam->pos, ray_dir, p1, p2, &tx, &ty)) {
+            // Calculate distance from camera to intersection point
+            float dist = sqrt(pow(tx - cam->pos.x, 2) + pow(ty - cam->pos.y, 2));
+            if (dist < min_dist) {
+                min_dist = dist;
+                closest_x = tx;
+                closest_y = ty;
+                hit = 1;
+            }
+        }
+    }
+
+    if (hit) {
+        *x = closest_x;
+        *y = closest_y;
+        printf("Hit at (%f, %f)\n", *x, *y);
+        return 1;  // Hit found
+    }
+
+    printf("No hit\n");
+    return 0;  // No hit
+}
 int	find_hit(t_obj *s, t_cam *cam, float *x, float *y)
 {
+	if (s->type == HARD)
+		return (find_hit_hard(s, cam, x, y));
+	return (0);
 	float dx, dy, fx, fy;
 	float A, B, C;
 	float D;
@@ -141,7 +213,7 @@ int	find_hit(t_obj *s, t_cam *cam, float *x, float *y)
 	return (1);
 }
 
-void	rotate(t_vec3 *p, float angle)
+void	rotate(t_vec2 *p, float angle)
 {
 	float	x;
 	float	y;
@@ -165,7 +237,7 @@ void	draw(t_grid *grid)
 	for (float a = 0; a < 0.25; a += 0.01)
 	{
 		i = 0;
-		while (i < 3)
+		while (i < 4)
 		{
 			ray = *grid->cam;
 			rotate(&ray.ornt, PI*a);
@@ -212,6 +284,7 @@ int	main()
 	t_obj	s1;
 	t_obj	s2;
 	t_obj	s3;
+	t_obj 	s4;
 
 	grid.mlx = mlx_init();
 	grid.win = mlx_new_window(grid.mlx, WIDTH, HEIGHT, "FDF");
@@ -224,23 +297,36 @@ int	main()
 	cam.pos.y = HEIGHT/2;
 	cam.ornt.x = 0.3;
 	cam.ornt.y = 0.4;
+	s1.type = CIRCLE;
 	s1.pos.x = 200.0;
 	s1.pos.y = 200.0;
 	s1.r = 60;
 	s1.color = 0xFF0000;
+	s2.type = CIRCLE;
 	s2.pos.x = 400.0;
 	s2.pos.y = 300.0;
 	s2.r = 40;
 	s2.color = 0xFF00FF;
+	s3.type = CIRCLE;
 	s3.pos.x = 300.0;
 	s3.pos.y = 390.0;
 	s3.r = 100;
 	s3.color = 0xeeb804;
+	s4.type = HARD;
+	s4.color = 0xffffff;
+	s4.count_points = 2;
+	s4.points_x = malloc(sizeof(float) * 2);
+	s4.points_y = malloc(sizeof(float) * 2);
+	s4.points_x[0] = 100;
+	s4.points_y[0] = 100;
+	s4.points_x[1] = 150;
+	s4.points_y[1] = 100;
 	grid.cam = &cam;
-	grid.objs = malloc(sizeof(t_obj) * 3);
+	grid.objs = malloc(sizeof(t_obj) * 4);
 	grid.objs[0] = s1;
 	grid.objs[1] = s2;
 	grid.objs[2] = s3;
+	grid.objs[3] = s4;
 	/* ============================= */
 	draw(&grid);
 	mlx_hook(grid.win, 2, 1L << 0, event_handler, &grid);

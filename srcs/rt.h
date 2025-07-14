@@ -1,20 +1,10 @@
-#ifndef FDF_H
-# define FDF_H
-
+#ifndef RT_H
+# define RT_H
 # define PI 3.14
 # define WIDTH 600
 # define HEIGHT 600
-
-# define X_MIN 0
-# define Y_MIN 0
-# define X_MAX WIDTH
-# define Y_MAX HEIGHT
-
-# define INSIDE 0
-# define LEFT   1
-# define RIGHT  2
-# define BOTTOM 4
-# define TOP    8
+# define CIRCLE 0
+# define HARD 1
 
 # include <stdlib.h>
 # include <fcntl.h>
@@ -22,23 +12,27 @@
 # include <math.h>
 # include "../mlx/mlx.h"
 
-typedef struct s_vec3
+typedef struct s_vec2
 {
 	float	x;
 	float	y;
-}	t_vec3;
+}	t_vec2;
 
 typedef struct s_obj
 {
-	t_vec3	pos;
+	int	type;
+	t_vec2	pos;
 	int	color;
 	float	r;
+	int	count_points;
+	float	*points_x;
+	float	*points_y;
 }	t_obj;
 
 typedef struct s_cam
 {
-	t_vec3	pos;
-	t_vec3	ornt;
+	t_vec2	pos;
+	t_vec2	ornt;
 }	t_cam;
 typedef struct s_data
 {
