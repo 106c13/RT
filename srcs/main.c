@@ -107,79 +107,72 @@ void	draw_s(t_data *img, t_obj *s)
 }
 
 /*
-y = k1x + b1
-y = k2x + b2
-x(k2 - k1) = b1 - b2
+A = (x1, y1)
+B = (x2, y2)
+C = (x3, y3)
+d = (x2 - x1) (y2 - y1)
+P(t) = A + t*d; t>=0
+Q(t) = B + u*(C - B); u E[0,1]
 */
-int ray_intersect_segment(t_vec2 ray_origin, t_vec2 ray_dir, t_vec2 p1, t_vec2 p2, float *tx, float *ty) {
-    // Ray: P_ray = ray_origin + t * ray_dir
-    // Edge: P_edge = p1 + u * (p2 - p1)
 
-    float denom = (ray_dir.x * (p2.y - p1.y)) - (ray_dir.y * (p2.x - p1.x));
+int find_hit_hard(t_obj *s, t_cam *cam, float *x, float *y)
+{
+	float	x1, x2, x3;
+	float	y1, y2, y3;
+	float	dx, dy;
+	float	dist, d = 10000;
+	float	px, py;
+	float	ox, oy;
+	float	denom;
+	float	t, u;
+	int	i;
 
-    // Parallel lines (no intersection)
-    if (fabs(denom) < 1e-6) {
-        return 0;
-    }
-
-    float t = ((ray_origin.x - p1.x) * (p2.y - p1.y) - (ray_origin.y - p1.y) * (p2.x - p1.x)) / denom;
-    float u = ((ray_origin.x - p1.x) * ray_dir.y - (ray_origin.y - p1.y) * ray_dir.x) / denom;
-
-    // Check if the intersection is within the bounds of the segment (0 <= u <= 1)
-    if (u >= 0 && u <= 1 && t >= 0) {
-        *tx = ray_origin.x + t * ray_dir.x;
-        *ty = ray_origin.y + t * ray_dir.y;
-        return 1;
-    }
-
-    return 0;
-}
-
-int find_hit_hard(t_obj *s, t_cam *cam, float *x, float *y) {
-    float k1, b1;  // For the ray
-    float tx, ty;
-    float min_dist = 10000;  // A large initial distance
-    float closest_x = 0, closest_y = 0;
-    int hit = 0;
-
-    // Calculate ray direction (normalize for accuracy)
-    t_vec2 ray_dir = {cam->ornt.x - cam->pos.x, cam->ornt.y - cam->pos.y};
-    float ray_len = sqrt(ray_dir.x * ray_dir.x + ray_dir.y * ray_dir.y);
-    ray_dir.x /= ray_len;
-    ray_dir.y /= ray_len;
-
-    // Loop through all object edges
-    for (int i = 0; i < s->count_points; i++) {
-        t_vec2 p1 = {s->points_x[i], s->points_y[i]};
-        t_vec2 p2 = {s->points_x[(i + 1) % s->count_points], s->points_y[(i + 1) % s->count_points]};
-
-        if (ray_intersect_segment(cam->pos, ray_dir, p1, p2, &tx, &ty)) {
-            // Calculate distance from camera to intersection point
-            float dist = sqrt(pow(tx - cam->pos.x, 2) + pow(ty - cam->pos.y, 2));
-            if (dist < min_dist) {
-                min_dist = dist;
-                closest_x = tx;
-                closest_y = ty;
-                hit = 1;
-            }
-        }
-    }
-
-    if (hit) {
-        *x = closest_x;
-        *y = closest_y;
-        printf("Hit at (%f, %f)\n", *x, *y);
-        return 1;  // Hit found
-    }
-
-    printf("No hit\n");
-    return 0;  // No hit
+	x1 = cam->pos.x;
+	y1 = cam->pos.y;
+	dx = cam->ornt.x;
+	dy = cam->ornt.y;
+	i = -1;
+	while (i++ < s->count_points)
+	{
+		if (i == s->count_points - 1)
+		{
+			x2 = s->points_x[i];
+			x3 = s->points_x[0];
+			y2 = s->points_y[i];
+			y3 = s->points_y[0];
+		}
+		else
+		{
+			x2 = s->points_x[i];
+			x3 = s->points_x[i + 1];
+			y2 = s->points_y[i];
+			y3 = s->points_y[i + 1];
+		}
+		px = x3 - x2;
+		py = y3 - y2;
+		ox = x2 - x1;
+		oy = y2 - y1;
+		denom = (dx*py - dy*px);
+		if (denom == 0)
+			continue ;
+		t = (ox*py - oy*px)/denom;
+		u = (ox*dy - oy*dx)/denom;
+		if (!(t >= 0 && u >= 0 && u <= 1))
+			continue ;
+		dist = sqrt(t*t*(dx*dx + dy*dy));
+		if (dist < d)
+		{
+			d = dist;
+			*x = x1 + t*dx;
+			*y = y1 + t*dy;
+		}
+	}
+	return (1);
 }
 int	find_hit(t_obj *s, t_cam *cam, float *x, float *y)
 {
 	if (s->type == HARD)
 		return (find_hit_hard(s, cam, x, y));
-	return (0);
 	float dx, dy, fx, fy;
 	float A, B, C;
 	float D;
@@ -299,7 +292,7 @@ int	main()
 	cam.ornt.y = 0.4;
 	s1.type = CIRCLE;
 	s1.pos.x = 200.0;
-	s1.pos.y = 200.0;
+	s1.pos.y = 400.0;
 	s1.r = 60;
 	s1.color = 0xFF0000;
 	s2.type = CIRCLE;
@@ -313,14 +306,20 @@ int	main()
 	s3.r = 100;
 	s3.color = 0xeeb804;
 	s4.type = HARD;
-	s4.color = 0xffffff;
-	s4.count_points = 2;
-	s4.points_x = malloc(sizeof(float) * 2);
-	s4.points_y = malloc(sizeof(float) * 2);
+	s4.color = 0x0f61bc;
+	s4.count_points = 5;
+	s4.points_x = malloc(sizeof(float) * 5);
+	s4.points_y = malloc(sizeof(float) * 5);
 	s4.points_x[0] = 100;
 	s4.points_y[0] = 100;
-	s4.points_x[1] = 150;
-	s4.points_y[1] = 100;
+	s4.points_x[1] = 200;
+	s4.points_y[1] = 140;
+	s4.points_x[2] = 260;
+	s4.points_y[2] = 140;
+	s4.points_x[3] = 200;
+	s4.points_y[3] = 200;
+	s4.points_x[4] = 130;
+	s4.points_y[4] = 350;
 	grid.cam = &cam;
 	grid.objs = malloc(sizeof(t_obj) * 4);
 	grid.objs[0] = s1;
