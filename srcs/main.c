@@ -126,6 +126,7 @@ int find_hit_hard(t_obj *s, t_cam *cam, float *x, float *y)
 	float	denom;
 	float	t, u;
 	int	i;
+	int	hit = 0;
 
 	x1 = cam->pos.x;
 	y1 = cam->pos.y;
@@ -162,12 +163,13 @@ int find_hit_hard(t_obj *s, t_cam *cam, float *x, float *y)
 		dist = sqrt(t*t*(dx*dx + dy*dy));
 		if (dist < d)
 		{
+			hit = 1;
 			d = dist;
 			*x = x1 + t*dx;
 			*y = y1 + t*dy;
 		}
 	}
-	return (1);
+	return (hit);
 }
 int	find_hit(t_obj *s, t_cam *cam, float *x, float *y)
 {
